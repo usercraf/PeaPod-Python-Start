@@ -44,12 +44,15 @@ async def start_bot(message: types.Message):
         builder.adjust(1)
         await message.answer(f'Вітаю адміністраторе {message.from_user.first_name}, що будемо робити?',
                              reply_markup=builder.as_markup())
-    else:
+    elif role[0] == 'student':
         for key, value in buttons_students().items():
             builder.add(types.InlineKeyboardButton(text=value, callback_data=key))
         builder.adjust(1)
         await message.answer(f'Вітаю тебе {message.from_user.first_name}, що будемо робити?',
                              reply_markup=builder.as_markup())
+    else:
+        builder.add(types.InlineKeyboardButton(text='Тут', callback_data='verification'))
+        await message.answer('Верифікуйся', reply_markup=builder.as_markup())
 
 
 async def main():
