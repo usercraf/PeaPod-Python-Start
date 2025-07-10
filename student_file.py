@@ -14,6 +14,29 @@ students_router = Router()
 class Verification(StatesGroup):
     verification = State()
 
+def get_paginated_keyboard(students: list, page: int, per_page: int = 5) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+
+    start = page * per_page
+    end = start + per_page
+    page_students = students[start:end]
+
+    for id_hw in page_students:
+        button_text = f"Домашнє завдання № {id_hw}"
+        builder.add(types.InlineKeyboardButton(text=button_text, callback_data=f"selecthw_{id_hw}"))
+    builder.adjust(1)
+    navigation = []
+    if page > 0:
+        navigation.append(types.InlineKeyboardButton(text="⬅️", callback_data=f"page_{page - 1}"))
+    if end < len(students):
+        navigation.append(types.InlineKeyboardButton(text="➡️", callback_data=f"page_{page + 1}"))
+
+    if navigation:
+        builder.row(*navigation)
+
+    return builder.as_markup()
+
+
 @students_router.callback_query(F.data == 'verification')
 async def verification_student(callback: types.CallbackQuery, state: FSMContext):
     logger.info(
@@ -64,32 +87,6 @@ async def chek_my_stars(callback: types.CallbackQuery):
                                          reply_markup=builder.as_markup())
 
 
-
-
-def get_paginated_keyboard(students: list, page: int, per_page: int = 5) -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-
-    start = page * per_page
-    end = start + per_page
-    page_students = students[start:end]
-
-    for id_hw in page_students:
-        button_text = f"Домашнє завдання № {id_hw}"
-        builder.add(types.InlineKeyboardButton(text=button_text, callback_data=f"selecthw_{id_hw}"))
-
-    navigation = []
-    if page > 0:
-        navigation.append(types.InlineKeyboardButton(text="⬅️", callback_data=f"page_{page - 1}"))
-    if end < len(students):
-        navigation.append(types.InlineKeyboardButton(text="➡️", callback_data=f"page_{page + 1}"))
-
-    if navigation:
-        builder.adjust(1)
-        builder.row(*navigation)
-
-    return builder.as_markup()
-
-
 @students_router.callback_query(F.data == "home_work_students")
 async def show_hw_students(callback: types.CallbackQuery):
     hw_data = cur.execute("SELECT id FROM hw_table").fetchall()
@@ -105,4 +102,12 @@ async def paginate_students(callback: types.CallbackQuery):
     hw_list = [item[0] for item in hw_data]
     keyboard = get_paginated_keyboard(hw_list, page)
     await callback.message.edit_reply_markup(reply_markup=keyboard)
+    await callback.answer()
+
+
+@students_router.callback_query(F.data.startswith('selecthw_'))
+async def get_hw(callback: types.CallbackQuery):
+    id_hw = callback.data.split('_')[1]
+    data_hw = cur.execute("""SELECT home_work, day_of FROM hw_table WHERE id=?""",(id_hw,)).fetchone()
+    await callback.bot.send_message(chat_id=callback.from_user.id, text=f'{data_hw[0]}\n\nДата здачі завдання: {data_hw[1]}')
     await callback.answer()

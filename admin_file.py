@@ -1,3 +1,5 @@
+from idlelib.window import add_windows_to_menu
+
 from aiogram import types, F, Router
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.fsm.context import FSMContext
@@ -21,6 +23,10 @@ class AddStars(StatesGroup):
 
 class DellStudent(StatesGroup):
     del_student = State()
+
+class AddHomeWork(StatesGroup):
+    add_hw = State()
+    record_to_db = State()
 
 def generate_unique_code():
     while True:
@@ -128,4 +134,44 @@ async def del_student(callback: types.CallbackQuery, state: FSMContext):
     except Exception as e:
         logger.error(f'Відбулась помилка {e} при видаленні студента.')
         await callback.message.answer(f'❌ Відбулась помилка.', reply_markup=get_home_builder().as_markup())
+        await state.clear()
+
+
+@admin_router.callback_query(F.data == 'add_home_work')
+async def add_hw(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer('⬇️ Надішліть домашнє завдання.',
+                                  reply_markup=get_home_builder().as_markup())
+    await state.set_state(AddHomeWork.add_hw)
+
+@admin_router.message(AddHomeWork.add_hw)
+async def add_day_of(message: types.Message, state: FSMContext):
+    await state.update_data(home_work = message.text)
+    await message.answer('⬇️ Введіть дату до якої студенти мають виконати домашнє завдання.',
+                         reply_markup=get_home_builder().as_markup())
+    await state.set_state(AddHomeWork.record_to_db)
+
+@admin_router.message(AddHomeWork.record_to_db)
+async def record_hw(message: types.Message, state: FSMContext):
+    day_of = message.text
+    exercise = await state.get_data()
+    home_work = exercise.get('home_work')
+    try:
+        cur.execute("""INSERT INTO hw_table (home_work, day_of) VALUES (?,?)""", (home_work, day_of))
+        base.commit()
+        logger.info('Домашнє завдання було успішно внесено до бази даних.')
+        await message.answer('✅ Ви успішно внесли завдання до бази даних.')
+        await state.clear()
+        try:
+            tg_id_students = cur.execute("""SELECT tg_id FROM students""").fetchall()
+            for item in tg_id_students:
+                await message.bot.send_message(chat_id=item[0], text='‼️ Додано нове домашнє завдання')
+        except TelegramBadRequest as e:
+            logger.error(f'Розсилка сповіщення про ДЗ. Користувач видалив чат або бот не має дозволу писати {e}.')
+            await message.answer(f'❌ Сталась помилка зверніться до адміністратора {e}.')
+        except TelegramForbiddenError as e:
+            logger.error(f'Розсилка сповіщення про ДЗ. Користувач заблокував бота {e}')
+            await message.answer(f'❌ Сталась помилка зверніться до адміністратора {e}.')
+    except Exception as e:
+        logger.error(f'При внесені домашнього завдання до бази даних відбулась помилка {e}.')
+        await message.answer('❌ Відбулась помилка при внесенні до бази даних.')
         await state.clear()
