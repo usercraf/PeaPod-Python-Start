@@ -18,65 +18,67 @@ bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
 
+async def send_main_menu(user_id: int, user_name: str, send_func):
+    data = cur.execute("SELECT role, verification FROM students WHERE tg_id=?", (user_id,)).fetchone()
+
+    builder = InlineKeyboardBuilder()
+
+    if data is None:
+        builder.add(types.InlineKeyboardButton(text='⬇️ Тут', callback_data='verification'))
+        await send_func("🤷🏼‍♂️ Ви відсутні в базі. Зверніться до адміністратора або верифікуйся.",
+                        reply_markup=builder.as_markup())
+        return
+
+    role, verification = data
+
+    if role == 'ADMIN':
+        for key, value in button_admin().items():
+            builder.add(types.InlineKeyboardButton(text=value, callback_data=key))
+        builder.adjust(1)
+        await send_func(f'💪 Вітаю адміністраторе {user_name}, що будемо робити?',
+                        reply_markup=builder.as_markup())
+
+    elif role == 'student' and verification == 1:
+        for key, value in buttons_students().items():
+            builder.add(types.InlineKeyboardButton(text=value, callback_data=key))
+        builder.adjust(1)
+        await send_func(f'🐍 Вітаю тебе {user_name}, що будемо робити?',
+                        reply_markup=builder.as_markup())
+
+    else:
+        builder.add(types.InlineKeyboardButton(text='⬇️ Тут', callback_data='verification'))
+        await send_func('🔐 Верифікуйся', reply_markup=builder.as_markup())
+
+
 @dp.message(Command("start"))
 async def start_bot(message: types.Message):
     try:
-        data = cur.execute("""SELECT role, verification FROM students WHERE tg_id=?""", (message.from_user.id,)).fetchone()
-        builder = InlineKeyboardBuilder()
-
-        if data is None:
-            await message.answer('🤷🏼‍♂️ Ви відсутні в базі даних.\nЗверніться до адміністратора або верифікуйся.')
-            builder.add(types.InlineKeyboardButton(text='⬇️ Тут', callback_data='verification'))
-            await message.answer('Верифікуйся', reply_markup=builder.as_markup())
-            return
-
-        role, verification = data
-        if role == 'ADMIN':
-            for key, value in button_admin().items():
-                builder.add(types.InlineKeyboardButton(text=value, callback_data=key))
-            builder.adjust(1)
-            await message.answer(f'💪 Вітаю адміністраторе {message.from_user.first_name}, що будемо робити?',
-                                 reply_markup=builder.as_markup())
-        elif role == 'student' and verification == 1:
-            for key, value in buttons_students().items():
-                builder.add(types.InlineKeyboardButton(text=value, callback_data=key))
-            builder.adjust(1)
-            await message.answer(f'🐍 Вітаю тебе {message.from_user.first_name}, що будемо робити?',
-                                 reply_markup=builder.as_markup())
-        else:
-            builder.add(types.InlineKeyboardButton(text='⬇️ Тут', callback_data='verification'))
-            await message.answer('Верифікуйся', reply_markup=builder.as_markup())
+        await send_main_menu(
+            user_id=message.from_user.id,
+            user_name=message.from_user.first_name,
+            send_func=message.answer
+        )
     except TelegramBadRequest as e:
-        logger.error(f'Користувач {message.from_user.id} видалив чат або бот не має дозволу писати {e}.')
-        await message.answer(f'❌ Сталась помилка зверніться до адміністратора {e}.')
+        logger.error(f'❌ BadRequest: {e}')
+        await message.answer('❌ Сталась помилка. Спробуйте пізніше.')
     except TelegramForbiddenError as e:
-        logger.error(f'Користувач {message.from_user.id} заблокував бота {e}')
-        await message.answer(f'❌ Сталась помилка зверніться до адміністратора {e}.')
+        logger.error(f'⛔️ Forbidden: {e}')
+        await message.answer('⛔️ Ви заблокували бота або видалили чат.')
 
 
 @dp.callback_query(F.data == 'Home')
 async def home(callback: types.CallbackQuery, state: FSMContext):
     try:
         await state.clear()
-        data = cur.execute("""SELECT role, verification FROM students WHERE tg_id=?""", (callback.from_user.id,)).fetchone()
-        builder = InlineKeyboardBuilder()
-        role, verification = data
-        if role == 'ADMIN':
-            for key, value in button_admin().items():
-                builder.add(types.InlineKeyboardButton(text=value, callback_data=key))
-            builder.adjust(1)
-            await callback.message.answer(f'💪 Вітаю адміністраторе {callback.from_user.first_name}, що будемо робити?',
-                                 reply_markup=builder.as_markup())
-        elif role == 'student' and verification == 1:
-            for key, value in buttons_students().items():
-                builder.add(types.InlineKeyboardButton(text=value, callback_data=key))
-            builder.adjust(1)
-            await callback.message.answer(f'🐍 Вітаю тебе {callback.from_user.first_name}, що будемо робити?',
-                                 reply_markup=builder.as_markup())
+        await send_main_menu(
+            user_id=callback.from_user.id,
+            user_name=callback.from_user.first_name,
+            send_func=callback.message.answer
+        )
     except Exception as e:
         await state.clear()
-        logger.error(f'Помилка при натисканні кнопки НА ГОЛОВНУ {e}')
-        await callback.message.answer(f'❌ Сталась помилка зверніться до адміністратора {e}.')
+        logger.error(f'❌ Помилка при натисканні "На головну": {e}')
+        await callback.message.answer('❌ Сталась помилка. Зверніться до адміністратора.')
 
 
 
