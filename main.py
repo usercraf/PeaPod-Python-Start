@@ -86,18 +86,18 @@ async def main():
     dp.include_router(students_router)
     dp.include_router(admin_router)
     tryings = 0
-    while True:
-        try:
-            print("🚀 Bot run")
-            logger.info('Бот стартує.')
-            await dp.start_polling(bot)
-        except TelegramNetworkError as e:
-            tryings += 1
-            logger.warning(f"⚠️ TelegramNetworkError: {e}. Спроба №{tryings}")
-            await asyncio.sleep(1.0 * tryings)
-        except Exception as e:
-            logger.exception(f"💥 Невідома помилка polling: {e}")
-            await asyncio.sleep(5)
+    # while True:
+    try:
+        print("🚀 Bot run")
+        logger.info('Бот стартує.')
+        await dp.start_polling(bot)
+    except TelegramNetworkError as e:
+        tryings += 1
+        logger.warning(f"⚠️ TelegramNetworkError: {e}. Спроба №{tryings}")
+        await asyncio.sleep(1.0 * tryings)
+    except Exception as e:
+        logger.exception(f"💥 Невідома помилка polling: {e}")
+        await asyncio.sleep(5)
 
 if __name__ == "__main__":
     asyncio.run(main())
