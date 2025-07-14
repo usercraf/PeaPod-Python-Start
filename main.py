@@ -89,6 +89,7 @@ async def main():
     while True:
         try:
             print("🚀 Bot run")
+            logger.info('Бот стартує.')
             await dp.start_polling(bot)
         except TelegramNetworkError as e:
             tryings += 1
