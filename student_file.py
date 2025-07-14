@@ -14,6 +14,13 @@ students_router = Router()
 class Verification(StatesGroup):
     verification = State()
 
+def clear_unread_results(cur):
+    try:
+        while cur.nextset():
+            pass
+    except:
+        pass
+
 def get_paginated_keyboard(students: list, page: int, per_page: int = 5) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
@@ -49,6 +56,7 @@ async def verification_student(callback: types.CallbackQuery, state: FSMContext)
 async def verification_code(message: types.Message, state: FSMContext):
     code = message.text.strip()
     try:
+        clear_unread_results(cur)
         cur.execute("""SELECT 1 FROM students WHERE secret_key=%s""", (code,))
         secret_code = cur.fetchone()
         if secret_code is None:
@@ -79,6 +87,7 @@ async def chek_my_stars(callback: types.CallbackQuery):
         builder.add(types.InlineKeyboardButton(text=value, callback_data=key))
     builder.adjust(1)
     try:
+        clear_unread_results(cur)
         cur.execute("""SELECT points FROM students WHERE tg_id=%s""", (callback.from_user.id,))
         data_stars = cur.fetchone()
         await callback.message.answer(f'{callback.from_user.first_name} на Вашому рахунку {data_stars[0]} 🌟.',
@@ -91,6 +100,7 @@ async def chek_my_stars(callback: types.CallbackQuery):
 
 @students_router.callback_query(F.data == "home_work_students")
 async def show_hw_students(callback: types.CallbackQuery):
+    clear_unread_results(cur)
     cur.execute("SELECT id FROM hw_table")
     hw_data = cur.fetchall()
     hw_list = [item[0] for item in hw_data]
@@ -101,6 +111,7 @@ async def show_hw_students(callback: types.CallbackQuery):
 @students_router.callback_query(F.data.startswith("page_"))
 async def paginate_students(callback: types.CallbackQuery):
     page = int(callback.data.split("_")[1])
+    clear_unread_results(cur)
     cur.execute("SELECT id FROM hw_table")
     hw_data = cur.fetchall()
     hw_list = [item[0] for item in hw_data]
@@ -112,6 +123,7 @@ async def paginate_students(callback: types.CallbackQuery):
 @students_router.callback_query(F.data.startswith('selecthw_'))
 async def get_hw(callback: types.CallbackQuery):
     id_hw = callback.data.split('_')[1]
+    clear_unread_results(cur)
     cur.execute("""SELECT home_work, day_of FROM hw_table WHERE id=%s""",(id_hw,))
     data_hw = cur.fetchone()
     await callback.bot.send_message(chat_id=callback.from_user.id, text=f'{data_hw[0]}\n\nДата здачі завдання: {data_hw[1]}')

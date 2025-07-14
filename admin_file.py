@@ -26,13 +26,22 @@ class AddHomeWork(StatesGroup):
     add_hw = State()
     record_to_db = State()
 
+def clear_unread_results(cur):
+    try:
+        while cur.nextset():
+            pass
+    except:
+        pass
+
 def generate_unique_code():
     while True:
         code = "{:06d}".format(random.randint(100000, 999999))
+        clear_unread_results(cur)
         cur.execute("SELECT 1 FROM students WHERE secret_key = %s", (code,))
         exists = cur.fetchone()
         if not exists:
             return int(code)
+
 
 
 @admin_router.callback_query(F.data == 'add_student')
@@ -60,6 +69,7 @@ async def record_student(message: types.Message, state: FSMContext):
 @admin_router.callback_query(F.data == 'add_stars')
 async def all_students(callback: types.CallbackQuery, state: FSMContext):
     try:
+        clear_unread_results(cur)
         cur.execute("""SELECT full_name, tg_id FROM students WHERE role=%s""", ('student',))
         data_students = cur.fetchall()
         builder = InlineKeyboardBuilder()
@@ -86,6 +96,7 @@ async def record_to_table(message: types.Message, state: FSMContext):
     data_fsm = await state.get_data()
     tg_id = data_fsm.get('tg_id')
     try:
+        clear_unread_results(cur)
         cur.execute("""SELECT points FROM students WHERE tg_id = %s""", (tg_id,))
         get_star = cur.fetchone()
         logger.info(f'Вибір кількості зірок у користувача {tg_id}')
@@ -111,6 +122,7 @@ async def record_to_table(message: types.Message, state: FSMContext):
 @admin_router.callback_query(F.data == 'del_student')
 async def chose_dell_student(callback: types.CallbackQuery, state: FSMContext):
     try:
+        clear_unread_results(cur)
         cur.execute("""SELECT full_name, tg_id FROM students WHERE role=%s""", ('student',))
         data_students = cur.fetchall()
         builder = InlineKeyboardBuilder()
@@ -164,6 +176,7 @@ async def record_hw(message: types.Message, state: FSMContext):
         await message.answer('✅ Ви успішно внесли завдання до бази даних.')
         await state.clear()
         try:
+            clear_unread_results(cur)
             cur.execute("""SELECT tg_id FROM students""")
             tg_id_students = cur.fetchall()
             for item in tg_id_students:
