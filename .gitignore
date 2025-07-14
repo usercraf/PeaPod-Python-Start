@@ -4,3 +4,5 @@ __pycach__/
 
 bot.log
 PeaPod.db
+db_file.py
+key_file.py
