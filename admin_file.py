@@ -1,5 +1,3 @@
-from idlelib.window import add_windows_to_menu
-
 from aiogram import types, F, Router
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.fsm.context import FSMContext
