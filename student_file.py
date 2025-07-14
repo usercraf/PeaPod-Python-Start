@@ -101,7 +101,8 @@ async def show_hw_students(callback: types.CallbackQuery):
 @students_router.callback_query(F.data.startswith("page_"))
 async def paginate_students(callback: types.CallbackQuery):
     page = int(callback.data.split("_")[1])
-    hw_data = cur.execute("SELECT id FROM hw_table").fetchall()
+    cur.execute("SELECT id FROM hw_table")
+    hw_data = cur.fetchall()
     hw_list = [item[0] for item in hw_data]
     keyboard = get_paginated_keyboard(hw_list, page)
     await callback.message.edit_reply_markup(reply_markup=keyboard)
