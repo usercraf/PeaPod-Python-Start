@@ -29,7 +29,8 @@ class AddHomeWork(StatesGroup):
 def generate_unique_code():
     while True:
         code = "{:06d}".format(random.randint(100000, 999999))
-        exists = cur.execute("SELECT 1 FROM students WHERE secret_key = %s", (code,)).fetchone()
+        cur.execute("SELECT 1 FROM students WHERE secret_key = %s", (code,))
+        exists = cur.fetchone()
         if not exists:
             return int(code)
 
@@ -59,7 +60,8 @@ async def record_student(message: types.Message, state: FSMContext):
 @admin_router.callback_query(F.data == 'add_stars')
 async def all_students(callback: types.CallbackQuery, state: FSMContext):
     try:
-        data_students = cur.execute("""SELECT full_name, tg_id FROM students WHERE role=%s""", ('student',)).fetchall()
+        cur.execute("""SELECT full_name, tg_id FROM students WHERE role=%s""", ('student',))
+        data_students = cur.fetchall()
         builder = InlineKeyboardBuilder()
         for name, tg_id in data_students:
             builder.add(types.InlineKeyboardButton(text=name, callback_data=f'student_{tg_id}'))
@@ -84,7 +86,8 @@ async def record_to_table(message: types.Message, state: FSMContext):
     data_fsm = await state.get_data()
     tg_id = data_fsm.get('tg_id')
     try:
-        get_star = cur.execute("""SELECT points FROM students WHERE tg_id = %s""", (tg_id,)).fetchone()
+        cur.execute("""SELECT points FROM students WHERE tg_id = %s""", (tg_id,))
+        get_star = cur.fetchone()
         logger.info(f'Вибір кількості зірок у користувача {tg_id}')
         result_stars = int(get_star[0]) + stars
         cur.execute("""UPDATE students SET points = %s WHERE tg_id = %s""", (result_stars, tg_id))
@@ -108,7 +111,8 @@ async def record_to_table(message: types.Message, state: FSMContext):
 @admin_router.callback_query(F.data == 'del_student')
 async def chose_dell_student(callback: types.CallbackQuery, state: FSMContext):
     try:
-        data_students = cur.execute("""SELECT full_name, tg_id FROM students WHERE role=%s""", ('student',)).fetchall()
+        cur.execute("""SELECT full_name, tg_id FROM students WHERE role=%s""", ('student',))
+        data_students = cur.fetchall()
         builder = InlineKeyboardBuilder()
         for name, tg_id in data_students:
             builder.add(types.InlineKeyboardButton(text=name, callback_data=f'dell_{tg_id}'))
@@ -160,7 +164,8 @@ async def record_hw(message: types.Message, state: FSMContext):
         await message.answer('✅ Ви успішно внесли завдання до бази даних.')
         await state.clear()
         try:
-            tg_id_students = cur.execute("""SELECT tg_id FROM students""").fetchall()
+            cur.execute("""SELECT tg_id FROM students""")
+            tg_id_students = cur.fetchall()
             for item in tg_id_students:
                 await message.bot.send_message(chat_id=item[0], text='‼️ Додано нове домашнє завдання')
         except TelegramBadRequest as e:

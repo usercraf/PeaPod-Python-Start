@@ -49,7 +49,8 @@ async def verification_student(callback: types.CallbackQuery, state: FSMContext)
 async def verification_code(message: types.Message, state: FSMContext):
     code = message.text.strip()
     try:
-        secret_code = cur.execute("""SELECT 1 FROM students WHERE secret_key=%s""", (code,)).fetchone()
+        cur.execute("""SELECT 1 FROM students WHERE secret_key=%s""", (code,))
+        secret_code = cur.fetchone()
         if secret_code is None:
             logger.warning(
                 f"Користувач {message.from_user.first_name} (ID: {message.from_user.id}) ввів непривильний пароль до верифікації.")
@@ -78,7 +79,8 @@ async def chek_my_stars(callback: types.CallbackQuery):
         builder.add(types.InlineKeyboardButton(text=value, callback_data=key))
     builder.adjust(1)
     try:
-        data_stars = cur.execute("""SELECT points FROM students WHERE tg_id=%s""", (callback.from_user.id,)).fetchone()
+        cur.execute("""SELECT points FROM students WHERE tg_id=%s""", (callback.from_user.id,))
+        data_stars = cur.fetchone()
         await callback.message.answer(f'{callback.from_user.first_name} на Вашому рахунку {data_stars[0]} 🌟.',
                                       reply_markup=builder.as_markup())
     except Exception as e:
@@ -89,7 +91,8 @@ async def chek_my_stars(callback: types.CallbackQuery):
 
 @students_router.callback_query(F.data == "home_work_students")
 async def show_hw_students(callback: types.CallbackQuery):
-    hw_data = cur.execute("SELECT id FROM hw_table").fetchall()
+    cur.execute("SELECT id FROM hw_table")
+    hw_data = cur.fetchall()
     hw_list = [item[0] for item in hw_data]
     keyboard = get_paginated_keyboard(hw_list, page=0)
     await callback.message.answer("Перелік домашнього завдання:", reply_markup=keyboard)
@@ -108,6 +111,7 @@ async def paginate_students(callback: types.CallbackQuery):
 @students_router.callback_query(F.data.startswith('selecthw_'))
 async def get_hw(callback: types.CallbackQuery):
     id_hw = callback.data.split('_')[1]
-    data_hw = cur.execute("""SELECT home_work, day_of FROM hw_table WHERE id=%s""",(id_hw,)).fetchone()
+    cur.execute("""SELECT home_work, day_of FROM hw_table WHERE id=%s""",(id_hw,))
+    data_hw = cur.fetchone()
     await callback.bot.send_message(chat_id=callback.from_user.id, text=f'{data_hw[0]}\n\nДата здачі завдання: {data_hw[1]}')
     await callback.answer()
