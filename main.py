@@ -30,6 +30,12 @@ async def send_main_menu(user_id: int, user_name: str, send_func):
             base.reconnect()
 
         with base.cursor() as cur:
+            try:
+                while cur.nextset():  # очищення залишків
+                    pass
+            except Exception:
+                pass
+
             cur.execute("SELECT role, verification FROM students WHERE tg_id=%s", (user_id,))
             data = cur.fetchone()
 
