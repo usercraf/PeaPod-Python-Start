@@ -9,12 +9,14 @@ logger.setLevel(logging.INFO)  # Міняй на INFO / WARNING / ERROR, якщ�
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
 # === Хендлер у файл з обмеженням розміру (лог-обертання) ===
+LOG_PATH = "/home/orangepi/PeaPod-Python-Start/bot.log"
 file_handler = RotatingFileHandler(
-    "bot.log",
-    maxBytes=1_000_000,     # 1 MB
-    backupCount=5,          # залишити до 5 старих логів
+    LOG_PATH,
+    maxBytes=1_000_000,
+    backupCount=5,
     encoding="utf-8"
 )
+
 file_handler.setFormatter(formatter)
 
 # === Хендлер для консолі ===
