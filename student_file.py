@@ -64,9 +64,9 @@ async def verification_code(message: types.Message, state: FSMContext):
         else:
             logger.info(
                 f"Користувач {message.from_user.first_name} (ID: {message.from_user.id}) пройшов верифікацію.")
-
-            cur.execute("""UPDATE students SET verification=%s, tg_id=%s WHERE secret_key=%s""", (1, int(message.from_user.id), code))
-            base.commit()
+            with base.cursor() as cur:
+                cur.execute("""UPDATE students SET verification=%s, tg_id=%s WHERE secret_key=%s""", (1, int(message.from_user.id), code))
+                base.commit()
             await state.clear()
             await message.answer('🥳 Вітаю верифікація пройдена.Натисніть /start.')
 

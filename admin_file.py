@@ -196,8 +196,9 @@ async def record_hw(message: types.Message, state: FSMContext):
         await message.answer('✅ Ви успішно внесли завдання до бази даних.')
         await state.clear()
         try:
-            cur.execute("""SELECT tg_id FROM students""")
-            tg_id_students = cur.fetchall()
+            with base.cursor() as cur:
+                cur.execute("""SELECT tg_id FROM students""")
+                tg_id_students = cur.fetchall()
             for item in tg_id_students:
                 await message.bot.send_message(chat_id=item[0], text='‼️ Додано нове домашнє завдання')
         except TelegramBadRequest as e:
