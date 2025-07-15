@@ -135,5 +135,7 @@ async def get_hw(callback: types.CallbackQuery):
     with base.cursor() as cur:
         cur.execute("""SELECT home_work, day_of FROM hw_table WHERE id=%s""",(id_hw,))
         data_hw = cur.fetchone()
-    await callback.bot.send_message(chat_id=callback.from_user.id, text=f'{data_hw[0]}\n\nДата здачі завдання: {data_hw[1]}')
+    await callback.bot.send_message(chat_id=callback.from_user.id,
+                                    text=f'{data_hw[0]}\n\nДата здачі завдання: {data_hw[1]}',
+                                    reply_markup=get_home_builder().as_markup())
     await callback.answer()
