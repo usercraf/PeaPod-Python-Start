@@ -26,19 +26,16 @@ class AddHomeWork(StatesGroup):
     add_hw = State()
     record_to_db = State()
 
-def clear_unread_results(cur):
-    try:
-        while cur.nextset():
-            pass
-    except:
-        pass
 
 def generate_unique_code():
     while True:
         code = "{:06d}".format(random.randint(100000, 999999))
-        clear_unread_results(cur)
-        cur.execute("SELECT 1 FROM students WHERE secret_key = %s", (code,))
-        exists = cur.fetchone()
+        if not base.is_connected():
+            base.reconnect()
+
+        with base.cursor() as cur:
+            cur.execute("SELECT 1 FROM students WHERE secret_key = %s", (code,))
+            exists = cur.fetchone()
         if not exists:
             return int(code)
 
@@ -54,8 +51,12 @@ async def record_student(message: types.Message, state: FSMContext):
     name_student = message.text.strip()
     secret_key = generate_unique_code()
     try:
-        cur.execute("""INSERT INTO students (full_name, secret_key) VALUES (%s,%s)""", (name_student, secret_key))
-        base.commit()
+        if not base.is_connected():
+            base.reconnect()
+
+        with base.cursor() as cur:
+            cur.execute("""INSERT INTO students (full_name, secret_key) VALUES (%s,%s)""", (name_student, secret_key))
+            base.commit()
         logger.info(f'Студента {name_student} успішно додано до бази даних.')
         await message.answer(f'✅ Студента {name_student} внесено до бази даних.\n{secret_key} ось ключ верифікації.',
                              reply_markup=get_home_builder().as_markup())
@@ -69,9 +70,12 @@ async def record_student(message: types.Message, state: FSMContext):
 @admin_router.callback_query(F.data == 'add_stars')
 async def all_students(callback: types.CallbackQuery, state: FSMContext):
     try:
-        clear_unread_results(cur)
-        cur.execute("""SELECT full_name, tg_id FROM students WHERE role=%s""", ('student',))
-        data_students = cur.fetchall()
+        if not base.is_connected():
+            base.reconnect()
+
+        with base.cursor() as cur:
+            cur.execute("""SELECT full_name, tg_id FROM students WHERE role=%s""", ('student',))
+            data_students = cur.fetchall()
         builder = InlineKeyboardBuilder()
         for name, tg_id in data_students:
             builder.add(types.InlineKeyboardButton(text=name, callback_data=f'student_{tg_id}'))
@@ -96,13 +100,18 @@ async def record_to_table(message: types.Message, state: FSMContext):
     data_fsm = await state.get_data()
     tg_id = data_fsm.get('tg_id')
     try:
-        clear_unread_results(cur)
-        cur.execute("""SELECT points FROM students WHERE tg_id = %s""", (tg_id,))
-        get_star = cur.fetchone()
+        if not base.is_connected():
+            base.reconnect()
+
+        with base.cursor() as cur:
+            cur.execute("""SELECT points FROM students WHERE tg_id = %s""", (tg_id,))
+            get_star = cur.fetchone()
         logger.info(f'Вибір кількості зірок у користувача {tg_id}')
         result_stars = int(get_star[0]) + stars
-        cur.execute("""UPDATE students SET points = %s WHERE tg_id = %s""", (result_stars, tg_id))
-        base.commit()
+
+        with base.cursor() as cur:
+            cur.execute("""UPDATE students SET points = %s WHERE tg_id = %s""", (result_stars, tg_id))
+            base.commit()
         await message.answer('✅ Ви успішно додали зірочки до користувача. '
                              'Користувачу буде надіслано повідомлення про оновлення.', reply_markup=get_home_builder().as_markup())
         try:
@@ -122,9 +131,12 @@ async def record_to_table(message: types.Message, state: FSMContext):
 @admin_router.callback_query(F.data == 'del_student')
 async def chose_dell_student(callback: types.CallbackQuery, state: FSMContext):
     try:
-        clear_unread_results(cur)
-        cur.execute("""SELECT full_name, tg_id FROM students WHERE role=%s""", ('student',))
-        data_students = cur.fetchall()
+        if not base.is_connected():
+            base.reconnect()
+
+        with base.cursor() as cur:
+            cur.execute("""SELECT full_name, tg_id FROM students WHERE role=%s""", ('student',))
+            data_students = cur.fetchall()
         builder = InlineKeyboardBuilder()
         for name, tg_id in data_students:
             builder.add(types.InlineKeyboardButton(text=name, callback_data=f'dell_{tg_id}'))
@@ -140,9 +152,13 @@ async def chose_dell_student(callback: types.CallbackQuery, state: FSMContext):
 async def del_student(callback: types.CallbackQuery, state: FSMContext):
     tg_id_user = callback.data.split('_')[1]
     try:
-        cur.execute("""DELETE FROM students WHERE tg_id = %s""", (tg_id_user,))
-        logger.info(f'Відбулось видалення користувача {tg_id_user} з бази даних')
-        base.commit()
+        if not base.is_connected():
+            base.reconnect()
+
+        with base.cursor() as cur:
+            cur.execute("""DELETE FROM students WHERE tg_id = %s""", (tg_id_user,))
+            logger.info(f'Відбулось видалення користувача {tg_id_user} з бази даних')
+            base.commit()
         await callback.message.answer('✅ Успішно видалили студента.', reply_markup=get_home_builder().as_markup())
         await state.clear()
     except Exception as e:
@@ -170,13 +186,16 @@ async def record_hw(message: types.Message, state: FSMContext):
     exercise = await state.get_data()
     home_work = exercise.get('home_work')
     try:
-        cur.execute("""INSERT INTO hw_table (home_work, day_of) VALUES (%s,%s)""", (home_work, day_of))
-        base.commit()
+        if not base.is_connected():
+            base.reconnect()
+
+        with base.cursor() as cur:
+            cur.execute("""INSERT INTO hw_table (home_work, day_of) VALUES (%s,%s)""", (home_work, day_of))
+            base.commit()
         logger.info('Домашнє завдання було успішно внесено до бази даних.')
         await message.answer('✅ Ви успішно внесли завдання до бази даних.')
         await state.clear()
         try:
-            clear_unread_results(cur)
             cur.execute("""SELECT tg_id FROM students""")
             tg_id_students = cur.fetchall()
             for item in tg_id_students:

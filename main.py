@@ -10,7 +10,7 @@ from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 
 from key_file import TOKEN, buttons_students, button_admin
 from log_file import logger
-from db_file import cur
+from db_file import base
 from student_file import students_router
 from admin_file import admin_router
 
@@ -25,37 +25,45 @@ def clear_unread_results(cur):
         pass
 
 async def send_main_menu(user_id: int, user_name: str, send_func):
-    clear_unread_results(cur)
-    cur.execute("SELECT role, verification FROM students WHERE tg_id=%s", (user_id,))
-    data = cur.fetchone()
+    try:
+        if not base.is_connected():
+            base.reconnect()
 
-    builder = InlineKeyboardBuilder()
+        with base.cursor() as cur:
+            cur.execute("SELECT role, verification FROM students WHERE tg_id=%s", (user_id,))
+            data = cur.fetchone()
 
-    if data is None:
-        builder.add(types.InlineKeyboardButton(text='⬇️ Тут', callback_data='verification'))
-        await send_func("🤷🏼‍♂️ Ви відсутні в базі. Зверніться до адміністратора або верифікуйся.",
-                        reply_markup=builder.as_markup())
-        return
+        builder = InlineKeyboardBuilder()
 
-    role, verification = data
+        if data is None:
+            builder.add(types.InlineKeyboardButton(text='⬇️ Тут', callback_data='verification'))
+            await send_func("🤷🏼‍♂️ Ви відсутні в базі. Зверніться до адміністратора або верифікуйся.",
+                            reply_markup=builder.as_markup())
+            return
 
-    if role == 'ADMIN':
-        for key, value in button_admin().items():
-            builder.add(types.InlineKeyboardButton(text=value, callback_data=key))
-        builder.adjust(1)
-        await send_func(f'💪 Вітаю адміністраторе {user_name}, що будемо робити?',
-                        reply_markup=builder.as_markup())
+        role, verification = data
 
-    elif role == 'student' and verification == 1:
-        for key, value in buttons_students().items():
-            builder.add(types.InlineKeyboardButton(text=value, callback_data=key))
-        builder.adjust(1)
-        await send_func(f'🐍 Вітаю тебе {user_name}, що будемо робити?',
-                        reply_markup=builder.as_markup())
+        if role == 'ADMIN':
+            for key, value in button_admin().items():
+                builder.add(types.InlineKeyboardButton(text=value, callback_data=key))
+            builder.adjust(1)
+            await send_func(f'💪 Вітаю адміністраторе {user_name}, що будемо робити?',
+                            reply_markup=builder.as_markup())
 
-    else:
-        builder.add(types.InlineKeyboardButton(text='⬇️ Тут', callback_data='verification'))
-        await send_func('🔐 Верифікуйся', reply_markup=builder.as_markup())
+        elif role == 'student' and verification == 1:
+            for key, value in buttons_students().items():
+                builder.add(types.InlineKeyboardButton(text=value, callback_data=key))
+            builder.adjust(1)
+            await send_func(f'🐍 Вітаю тебе {user_name}, що будемо робити?',
+                            reply_markup=builder.as_markup())
+
+        else:
+            builder.add(types.InlineKeyboardButton(text='⬇️ Тут', callback_data='verification'))
+            await send_func('🔐 Верифікуйся', reply_markup=builder.as_markup())
+
+    except Exception as e:
+            logger.exception(f"💥 Помилка в send_main_menu: {e}")
+            await send_func("⚠️ Сталась помилка. Спробуйте пізніше.")
 
 
 @dp.message(Command("start"))
