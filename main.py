@@ -17,27 +17,30 @@ from admin_file import admin_router
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-def clear_unread_results(cur):
+def safe_fetchone(query: str, params: tuple = ()):
+    if not base.is_connected():
+        base.reconnect()
     try:
+        cur = base.cursor()
+        cur.execute(query, params)
+        result = cur.fetchone()
+
+        # дочитати все, навіть якщо не треба
         while cur.nextset():
             pass
-    except:
-        pass
+
+        cur.close()
+        return result
+    except Exception as e:
+        logger.error(f"[DB] safe_fetchone error: {e}")
+        return None
+
 
 async def send_main_menu(user_id: int, user_name: str, send_func):
     try:
-        if not base.is_connected():
-            base.reconnect()
-
-        with base.cursor() as cur:
-            try:
-                while cur.nextset():  # очищення залишків
-                    pass
-            except Exception:
-                pass
-
-            cur.execute("SELECT role, verification FROM students WHERE tg_id=%s", (user_id,))
-            data = cur.fetchone()
+        data = safe_fetchone(
+            "SELECT role, verification FROM students WHERE tg_id=%s", (user_id,)
+        )
 
         builder = InlineKeyboardBuilder()
 
@@ -68,8 +71,9 @@ async def send_main_menu(user_id: int, user_name: str, send_func):
             await send_func('🔐 Верифікуйся', reply_markup=builder.as_markup())
 
     except Exception as e:
-            logger.exception(f"💥 Помилка в send_main_menu: {e}")
-            await send_func("⚠️ Сталась помилка. Спробуйте пізніше.")
+        logger.exception(f"💥 Помилка в send_main_menu: {e}")
+        await send_func("⚠️ Сталась помилка. Спробуйте пізніше.")
+
 
 
 @dp.message(Command("start"))
